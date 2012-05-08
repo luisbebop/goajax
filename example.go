@@ -1,9 +1,8 @@
 package main
 
 import (
-	"http"
 	"goajax"
-	"os"
+	"net/http"
 )
 
 func main() {
@@ -49,6 +48,6 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 
 type Service int
 
-func (s *Service) Add(a, b float64) (float64, os.Error) {
+func (s *Service) Add(a, b float64) (float64, error) {
 	return a + b, nil
 }

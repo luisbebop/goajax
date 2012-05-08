@@ -1,16 +1,16 @@
 package goajax
 
 import (
-	"sync"
-	"reflect"
+	"encoding/json"
+	"errors"
 	"log"
-	"utf8"
-	"os"
-	"unicode"
-	"http"
-	"json"
-	"strings"
+	"net/http"
+	"reflect"
 	"strconv"
+	"strings"
+	"sync"
+	"unicode"
+	"unicode/utf8"
 )
 
 type service struct {
@@ -19,7 +19,6 @@ type service struct {
 	typ    reflect.Type           // type of the receiver
 	method map[string]*methodType // registered methods
 }
-
 
 type methodType struct {
 	sync.Mutex // protects counters
@@ -33,7 +32,6 @@ type Server struct {
 	sync.Mutex // protects the serviceMap
 	serviceMap map[string]*service
 }
-
 
 type jsonRequest struct {
 	Id     *json.RawMessage "id"
@@ -55,10 +53,10 @@ func NewServer() *Server {
 
 // Precompute the reflect type for os.Error.  Can't use os.Error directly
 // because Typeof takes an empty interface value.  This is annoying.
-var unusedError *os.Error
+var unusedError *error
 var typeOfOsError = reflect.TypeOf(unusedError).Elem()
 
-func (server *Server) register(rcvr interface{}, name string, useName bool) os.Error {
+func (server *Server) register(rcvr interface{}, name string, useName bool) error {
 	server.Lock()
 	defer server.Unlock()
 
@@ -75,16 +73,16 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 	if s.typ.PkgPath() != "" && !isExported(sname) && !useName {
 		s := "rpc Register: type " + sname + " is not exported"
 		log.Print(s)
-		return os.ErrorString(s)
+		return errors.New(s)
 	}
 	if _, present := server.serviceMap[sname]; present {
-		return os.ErrorString("rpc: service already defined: " + sname)
+		return errors.New("rpc: service already defined: " + sname)
 	}
 	s.name = sname
 	s.method = make(map[string]*methodType)
 
 	// Install the methods
-MethodLoop:
+	MethodLoop:
 	for m := 0; m < s.typ.NumMethod(); m++ {
 		method := s.typ.Method(m)
 		mtype := method.Type
@@ -129,17 +127,17 @@ MethodLoop:
 	if len(s.method) == 0 {
 		s := "rpc Register: type " + sname + " has no exported methods of suitable type"
 		log.Print(s)
-		return os.ErrorString(s)
+		return errors.New(s)
 	}
 	server.serviceMap[s.name] = s
 	return nil
 }
 
-func (server *Server) Register(rcvr interface{}) os.Error {
+func (server *Server) Register(rcvr interface{}) error {
 	return server.register(rcvr, "", false)
 }
 
-func (server *Server) RegisterName(name string, rcvr interface{}) os.Error {
+func (server *Server) RegisterName(name string, rcvr interface{}) error {
 	return server.register(rcvr, name, true)
 }
 
@@ -155,7 +153,6 @@ func isExported(name string) bool {
 	return unicode.IsUpper(rune)
 }
 
-
 func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	dec := json.NewDecoder(r.Body)
@@ -168,7 +165,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serviceMethod := strings.Split(req.Method, ".", -1)
+	serviceMethod := strings.Split(req.Method, ".")
 	server.Lock()
 	service, ok := server.serviceMap[serviceMethod[0]]
 	server.Unlock()
@@ -189,7 +186,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	args, err := getParams(req, mtype.argTypes)
 
 	if err != nil {
-		sendError(w, err.String())
+		sendError(w, err.Error())
 		return
 	}
 
@@ -206,7 +203,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	errInter := returnValues[1].Interface()
 	errmsg := ""
 	if errInter != nil {
-		errmsg = errInter.(os.Error).String()
+		errmsg = errInter.(error).Error()
 	}
 
 	resp := new(jsonResponse)
@@ -229,7 +226,7 @@ func sendError(w http.ResponseWriter, s string) {
 	w.Write([]byte("{\"jsonrpc\": \"2.0\", \"id\":null, \"error\":\"" + s + "\"}"))
 }
 
-func getParams(req *jsonRequest, argTypes []reflect.Type) ([]reflect.Value, os.Error) {
+func getParams(req *jsonRequest, argTypes []reflect.Type) ([]reflect.Value, error) {
 	params := make([]*json.RawMessage, 0)
 	err := json.Unmarshal(*req.Params, &params)
 
@@ -238,7 +235,7 @@ func getParams(req *jsonRequest, argTypes []reflect.Type) ([]reflect.Value, os.E
 	}
 
 	if len(params) != len(argTypes) {
-		return nil, os.ErrorString("Incorrect number of parameters.")
+		return nil, errors.New("Incorrect number of parameters.")
 	}
 
 	args := make([]reflect.Value, 0, len(argTypes))
@@ -250,7 +247,7 @@ func getParams(req *jsonRequest, argTypes []reflect.Type) ([]reflect.Value, os.E
 			argPointer := reflect.New(argType)
 			err := json.Unmarshal(*params[i], argPointer.Interface())
 			if err != nil {
-				return nil, os.ErrorString("Type mismatch parameter " + strconv.Itoa(i+1) + ".")
+				return nil, errors.New("Type mismatch parameter " + strconv.Itoa(i+1) + ".")
 			}
 			args = append(args, reflect.Indirect(argPointer))
 		} else {
@@ -258,21 +255,21 @@ func getParams(req *jsonRequest, argTypes []reflect.Type) ([]reflect.Value, os.E
 			var v interface{}
 			err := json.Unmarshal(*params[i], &v)
 			if err != nil {
-				return nil, os.ErrorString("Type mismatch parameter " + strconv.Itoa(i+1) + ".")
+				return nil, errors.New("Type mismatch parameter " + strconv.Itoa(i+1) + ".")
 			}
 			value := reflect.ValueOf(v)
 			if value.Type() == argType {
 				arg = reflect.ValueOf(v)
 			} else if value.Type().Kind() == reflect.Float32 || value.Type().Kind() == reflect.Float64 {
 				if argType.Kind() == reflect.Int || argType.Kind() == reflect.Int8 ||
-				argType.Kind() == reflect.Int16 || argType.Kind() == reflect.Int32 ||
-				argType.Kind() == reflect.Int64 {
+					argType.Kind() == reflect.Int16 || argType.Kind() == reflect.Int32 ||
+					argType.Kind() == reflect.Int64 {
 					arg = reflect.ValueOf(int(v.(float64)))
 				} else {
-					return nil, os.ErrorString("Type mismatch parameter " + strconv.Itoa(i+1) + ".")
+					return nil, errors.New("Type mismatch parameter " + strconv.Itoa(i+1) + ".")
 				}
 			} else {
-				return nil, os.ErrorString("Type mismatch parameter " + strconv.Itoa(i+1) + ".")
+				return nil, errors.New("Type mismatch parameter " + strconv.Itoa(i+1) + ".")
 			}
 			args = append(args, reflect.Value(arg))
 		}
