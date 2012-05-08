@@ -1,8 +1,9 @@
 package main
 
 import (
-	"goajax"
+	"./goajax"
 	"net/http"
+	"fmt"
 )
 
 func main() {
@@ -12,8 +13,9 @@ func main() {
 	http.HandleFunc("/", handleIndex)
 	http.Handle("/json", s)
 
+	fmt.Println()
+	fmt.Println("Starting server: http://localhost:9001")
 	http.ListenAndServe(":9001", nil)
-
 }
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {

@@ -34,15 +34,15 @@ type Server struct {
 }
 
 type jsonRequest struct {
-	Id     *json.RawMessage "id"
-	Method string           "method"
-	Params *json.RawMessage "params"
+	Id     *json.RawMessage `json:"id"`
+	Method string           `json:"method"`
+	Params *json.RawMessage `json:"params"`
 }
 
 type jsonResponse struct {
-	Id     *json.RawMessage "id"
-	Result interface{}      "result"
-	Error  interface{}      "error"
+	Id     *json.RawMessage `json:"id"`
+	Result interface{}      `json:"result"`
+	Error  interface{}      `json:"error"`
 }
 
 func NewServer() *Server {
