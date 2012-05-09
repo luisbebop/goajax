@@ -6,15 +6,17 @@ Go Ajax
 Install
 -------
   To build and install the library run the following commands:
-	export GOPATH=/path/to/install
+  
+    export GOPATH=/path/to/install
     git clone https://github.com/jeffreybolle/goajax.git
     cd goajax
-	cp -R goajax $GOPATH/src
+    cp -R goajax $GOPATH/src
     go install goajax
 
 Example
 -------
   To build and run the example run the following commands:
+    
     go run example.go
     
 
