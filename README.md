@@ -17,7 +17,7 @@ Example
 -------
   To build and run the example run the following commands:
     
-    go run example.go
+    go run example/example.go
     
 
   This will start the example web service listening on port 9001.  Start any browser and browse to <a href="http://localhost:9001/">http://localhost:9001/</a>.
