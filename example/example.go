@@ -34,6 +34,13 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 				$('#output').html(data.result);
 			}, "json");
 		});
+		$('#button-name').click(function(){
+			var name = $('#name').val();
+			var body = '{"jsonrpc": "2.0", "method":"Service.GetName","params":[\"'+name+'\"],"id":0}';
+			$.post("/json", body ,function(data){
+				$('#output-name').html(data.result);
+			}, "json");
+		});
 	});
 	</script>
 </head>
@@ -44,6 +51,10 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	<input id="b" type="text" name="b" style="width: 50px;" value="7" />
 	<input id="button" type="button" value="="/>	
 	<span id="output"></span>
+	<br/>
+	<input id="name" type="text" name="name" style="width: 50px;" value="joao" />
+	<input id="button-name" type="button" value="get name!"/>
+	<span id="output-name"></span>
 </body>
 </html>`))
 }
@@ -52,4 +63,8 @@ type Service int
 
 func (s *Service) Add(a, b float64) (float64, error) {
 	return a + b, nil
+}
+
+func (s *Service) GetName(name string) (string, error) {
+	return "hello " + name, nil
 }
