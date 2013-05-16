@@ -1,7 +1,7 @@
 package main
 
 import (
-	"../goajax"
+	"github.com/luisbebop/goajax"
 	"net/http"
 	"fmt"
 )
