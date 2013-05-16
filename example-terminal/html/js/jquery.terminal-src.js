@@ -1684,7 +1684,7 @@
     // -----------------------------------------------------------------------
     $.jrpc = function(url, id, method, params, success, error) {
         var request = $.json_stringify({
-           'jsonrpc': '2.0', 'method': method,
+           'jsonrpc': '2.0', 'method': 'Terminal.' + method[0].toUpperCase() + method.slice(1),
             'params': params, 'id': id});
         return $.ajax({
             url: url,
